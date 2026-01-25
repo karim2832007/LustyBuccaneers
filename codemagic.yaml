@@ -1,0 +1,45 @@
+workflows:
+  ios-unsigned:
+    name: "LustyBuccaneers – Unsigned iOS Build"
+    environment:
+      vars:
+        APP_NAME: "LustyBuccaneers"
+        APP_SHORT_NAME: "LustyBuccaneers"
+        APP_VERSION: "0.39"
+        DEVELOPER_NAME: "Gaming Mods"
+      xcode: latest
+
+    scripts:
+      - name: Convert JPG launch images to PNG (RenPy fix)
+        script: |
+          if [ -f LaunchImage-foreground.jpg ]; then
+            sips -s format png LaunchImage-foreground.jpg --out LaunchImage-foreground.png
+          fi
+          if [ -f LaunchImage-background.jpg ]; then
+            sips -s format png LaunchImage-background.jpg --out LaunchImage-background.png
+          fi
+
+      - name: Set project version
+        script: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" Info.plist
+
+      - name: Build Xcode project (unsigned)
+        script: |
+          xcodebuild \
+            -project LustyBuccaneers.xcodeproj \
+            -scheme LustyBuccaneers \
+            -configuration Release \
+            -archivePath build/LustyBuccaneers.xcarchive \
+            archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Manually package unsigned IPA
+        script: |
+          mkdir -p Payload
+          cp -R build/LustyBuccaneers.xcarchive/Products/Applications/*.app Payload/
+          zip -r LustyBuccaneers-unsigned.ipa Payload
+          mkdir -p build/ipa
+          mv LustyBuccaneers-unsigned.ipa build/ipa/
+
+    artifacts:
+      - build/ipa/*.ipa
